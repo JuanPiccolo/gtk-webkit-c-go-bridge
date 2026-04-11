@@ -110,6 +110,17 @@ var funcWhitelist = map[string]FuncDefinition{
     },
 }
 
+// --- Internal Helper ---
+// This saves you 10 lines of code in every UI-facing handler
+func getWebViewByName(name string) unsafe.Pointer {
+    for _, win := range GoOpenedWindows {
+        if win.WindowName == name {
+            return win.webViewPtr
+        }
+    }
+    return nil
+}
+
 // --- Your Handlers ---
 func handleSayHello(call JSCall) string {
     name := call.Args[0].(string)
@@ -301,91 +312,55 @@ func handleGetFolderFoldersByPath(call JSCall) string {
 }
 
 func handlePickFile(call JSCall) string {
-    var webViewPtr unsafe.Pointer
-    for _, win := range GoOpenedWindows {
-        if win.WindowName == call.WindowName {
-            webViewPtr = win.webViewPtr
-            break
-        }
+    if ptr := getWebViewByName(call.WindowName); ptr != nil {
+        C.OpenNativeFilePicker(ptr)
+        return "triggered"
     }
-    if webViewPtr != nil {
-        // Just call it! No cPath := C.OpenNativeFilePicker()
-        C.OpenNativeFilePicker(webViewPtr)
-    }
-    return "triggered"
+    return "false"
 }
 
 func handlePickFolder(call JSCall) string {
-    var webViewPtr unsafe.Pointer
-    for _, win := range GoOpenedWindows {
-        if win.WindowName == call.WindowName {
-            webViewPtr = win.webViewPtr
-            break
-        }
+    if ptr := getWebViewByName(call.WindowName); ptr != nil {
+        C.OpenNativeFolderPicker(ptr)
+        return "triggered"
     }
-    if webViewPtr != nil {
-        C.OpenNativeFolderPicker(webViewPtr)
-    }
-    return "triggered" 
+    return "false"
 }
-
+    
 func handleShowMessage(call JSCall) string {
-    if len(call.Args) < 2 {
-        return "false"
-    }
-    title, ok1 := call.Args[0].(string)
-    message, ok2 := call.Args[1].(string)
-    if !ok1 || !ok2 {
-        return "false"
-    }
-    var webViewPtr unsafe.Pointer
-    for _, win := range GoOpenedWindows {
-        if win.WindowName == call.WindowName {
-            webViewPtr = win.webViewPtr
-            break
-        }
-    }
-    if webViewPtr != nil {
+    if len(call.Args) < 2 { return "false" }
+    
+    title, _ := call.Args[0].(string)
+    message, _ := call.Args[1].(string)
+    
+    if ptr := getWebViewByName(call.WindowName); ptr != nil {
         cTitle := C.CString(title)
-        cMessage := C.CString(message)
+        cMsg := C.CString(message)
         defer C.free(unsafe.Pointer(cTitle))
-        defer C.free(unsafe.Pointer(cMessage))
+        defer C.free(unsafe.Pointer(cMsg))
 
-        C.ShowNativeAlert(webViewPtr, cTitle, cMessage)
+        C.ShowNativeAlert(ptr, cTitle, cMsg)
+        return "true"
     }
-    return "true"
+    return "false"
 }
 
 func handleConfirmMessage(call JSCall) string {
-    if len(call.Args) < 2 {
-        return "false"
-    }
+    if len(call.Args) < 2 { return "false" }
+    
+    title, _ := call.Args[0].(string)
+    message, _ := call.Args[1].(string)
 
-    title, ok1 := call.Args[0].(string)
-    message, ok2 := call.Args[1].(string)
-
-    if !ok1 || !ok2 {
-        return "false"
-    }
-
-    var webViewPtr unsafe.Pointer
-    for _, win := range GoOpenedWindows {
-        if win.WindowName == call.WindowName {
-            webViewPtr = win.webViewPtr
-            break
-        }
-    }
-
-    if webViewPtr != nil {
+    if ptr := getWebViewByName(call.WindowName); ptr != nil {
         cTitle := C.CString(title)
-        cMessage := C.CString(message)
+        cMsg := C.CString(message)
         defer C.free(unsafe.Pointer(cTitle))
-        defer C.free(unsafe.Pointer(cMessage))
+        defer C.free(unsafe.Pointer(cMsg))
 
-        C.ShowNativeConfirm(webViewPtr, cTitle, cMessage)
+        C.ShowNativeConfirm(ptr, cTitle, cMsg)
+        return "triggered"
     }
-
-    return "triggered"
+    return "false"
 }
 
 //-------------------------------------------------
@@ -429,6 +404,7 @@ func handleOpenNewWindow(call JSCall) string {
 func handleCloseNewWindow(call JSCall) string {
     if len(call.Args) < 1 { return "false" }
     targetName := call.Args[0].(string)
+    
     indexNum := -1
     for i, win := range GoOpenedWindows {
         if win.WindowName == targetName {
@@ -436,11 +412,15 @@ func handleCloseNewWindow(call JSCall) string {
             break
         }
     }
+    
     if indexNum == -1 { return "false" }
+
     cName := C.CString(targetName)
     defer C.free(unsafe.Pointer(cName))
+    
+    // We cast the C.bool to Go bool for the if-statement
     if bool(C.ClosePhysicalWindow(cName)) {
-        // Remove from slice (The Splice)
+        // Remove from slice
         GoOpenedWindows = append(GoOpenedWindows[:indexNum], GoOpenedWindows[indexNum+1:]...)
         return "true"
     }

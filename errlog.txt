@@ -1,0 +1,2 @@
+[13:50:58] Resolved relative path [AnotherPage.html] to [file:///home/user1/Programs/C/CGo/TestBuilds/2026-4-12-pm12-29/gtk-webkit-c-go-bridge-main/AnotherPage.html]
+[13:51:51] Resolved relative path [AnotherPage.html] to [file:///home/user1/Programs/C/CGo/TestBuilds/2026-4-12-pm12-29/gtk-webkit-c-go-bridge-main/AnotherPage.html]

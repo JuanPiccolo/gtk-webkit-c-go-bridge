@@ -169,6 +169,6 @@ Everything else is handled in Go.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) — feel free to use, modify, and contribute.
+This project is licensed under the Apache License 2.0 — feel free to use, modify, and contribute.
 
 
